@@ -1,11 +1,5 @@
-<<<<<<< HEAD
 # 🚦 Sistema de Semáforos Inteligentes
-=======
- # 🚦 Sistema de Semáforos Inteligentes
->>>>>>> 26fa0a40f65677d299723fe5d9fb953f0dbf9530
- ## Trabajo Práctico Integrador 2026 - Paradigma Funcional
-
-
+## Trabajo Práctico Integrador 2026 - Paradigma Funcional
 
 ## 📚 Información General
 
@@ -15,13 +9,9 @@
 
 **Año:** 2026
 
-<<<<<<< HEAD
 **Grupo:** 9
-=======
-**Grupo:** [9]
->>>>>>> 26fa0a40f65677d299723fe5d9fb953f0dbf9530
 
-### 👥 Integrante
+### 👥 Integrantes
 
 | Nombre | Usuario GitHub |
 |----------|----------|
@@ -67,11 +57,12 @@ El sistema implementa:
 
 ---
 
+
 # 🎥 Video de Defensa
 
 📺 **Presentación Técnica**
 
-🔗 [Agregar enlace de YouTube aquí]
+🔗 []
 
 ---
 
@@ -79,15 +70,16 @@ El sistema implementa:
 
 📑 Informe completo:
 
-🔗 [Agregar enlace al PDF]
+🔗 []
 
 ---
 
 # 💻 Repositorio GitHub
 
-🔗 [https://github.com/canarionahiara-collab/TPI-Funcional-2026-Grupo9.git]
+🔗 https://github.com/canarionahiara-collab/TPI-Funcional-2026-Grupo9.git
 
 ---
+
 
 
 # 📖 Referencias
@@ -105,8 +97,5 @@ El sistema implementa:
 
 Facultad de Ciencias Exactas y Naturales y Agrimensura
 
-<<<<<<< HEAD
 Paradigma y Lenguajes de Programación - 2026
-=======
-Paradigma y Lenguajes de Programación - 2026
->>>>>>> 26fa0a40f65677d299723fe5d9fb953f0dbf9530
+
