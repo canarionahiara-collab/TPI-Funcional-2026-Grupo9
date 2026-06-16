@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # 🚦 Sistema de Semáforos Inteligentes
+=======
+ # 🚦 Sistema de Semáforos Inteligentes
+>>>>>>> 26fa0a40f65677d299723fe5d9fb953f0dbf9530
  ## Trabajo Práctico Integrador 2026 - Paradigma Funcional
 
 
@@ -11,7 +15,11 @@
 
 **Año:** 2026
 
+<<<<<<< HEAD
 **Grupo:** 9
+=======
+**Grupo:** [9]
+>>>>>>> 26fa0a40f65677d299723fe5d9fb953f0dbf9530
 
 ### 👥 Integrante
 
@@ -97,4 +105,8 @@ El sistema implementa:
 
 Facultad de Ciencias Exactas y Naturales y Agrimensura
 
+<<<<<<< HEAD
 Paradigma y Lenguajes de Programación - 2026
+=======
+Paradigma y Lenguajes de Programación - 2026
+>>>>>>> 26fa0a40f65677d299723fe5d9fb953f0dbf9530
