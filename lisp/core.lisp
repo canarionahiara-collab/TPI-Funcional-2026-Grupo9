@@ -149,7 +149,7 @@
 ;==============================================================================================================
 (defun get_tiempo_colores ()
 
-  (with-open-file (stream "c:/Users/espin/OneDrive/Documentos/LISI/Paradigma/json/config.json.txt"
+  (with-open-file (stream "C:/Users/Usuario/Downloads/TPI-Funcional-2026-Grupo[9]/lisp/config.json"
                           :direction :input
                           :if-does-not-exist nil)
     (unless stream
@@ -529,4 +529,275 @@
 (calcular_porcentajes '())
 ;==============================================================================================================
 ;FINALIZA REQUERIMIENTO 6
+;==============================================================================================================
+
+
+;==============================================================================================================
+;FUNCIóN: get_tiempo_colores
+;NATURALEZA: PURA
+;ESTRATEGIA: No se utilizan condicionales.
+;IMPACTO: No destructiva
+;ENTRADAS:
+.
+
+;SALIDA:
+;Retorna una lista con los tiempos de duración para cada color. Los datos se leen del archivo config.json.
+;El formato de la salida es (tiempo_rojo tiempo_amarillo tiempo_verde tiempo_iter_rojo tiempo_iter_amarillo tiempo_iter_verde). Se requiere la bliblioteca quicklisp
+;y debe importarse la biblioteca mediante (ql:quickload :cl-json)
+;==============================================================================================================
+(defun get_tiempo_colores ()
+
+  (with-open-file (stream "c:/Users/espin/OneDrive/Documentos/LISI/Paradigma/json/config.json.txt"
+                          :direction :input
+                          :if-does-not-exist nil)
+    (unless stream
+      (error "No se pudo abrir el archivo"))
+    (let ((datos (json:decode-json stream))) (list (cdr (assoc :ROJO datos)) (cdr (assoc :AMARILLO datos)) (cdr (assoc :VERDE datos)) 
+	(cdr (assoc :itr  datos)) (cdr (assoc :ita datos)) (cdr (assoc :itv datos))) )))
+
+
+
+;==============================================================================================================
+;FUNCIóN: intervalo_rojo
+;NATURALEZA: PURA
+;ESTRATEGIA: Funcion Predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+.
+
+;SALIDA:
+;Retorna T si en el tiempo indicado el semáforo está en rojo.
+;==============================================================================================================
+(defun intervalo_rojo (tiempo-unix total rojo iter_r)
+
+	 (cond ((and (>= (mod tiempo-unix total) 0) (<= (mod tiempo-unix total) (- rojo 1)) T) 
+		(T NIL)))) 
+
+
+;==============================================================================================================
+;FUNCIóN: intervalo_iter_rojo
+;NATURALEZA: PURA
+;ESTRATEGIA: Funcion Predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+.
+
+;SALIDA:
+;Retorna T si en el tiempo indicado el semáforo está en intermitente rojo.
+;==============================================================================================================
+(defun intervalo_iter_rojo (tiempo-unix total rojo iter_r)
+(cond
+((and (>= (mod tiempo-unix total) rojo) (< (mod tiempo-unix total) (+ rojo iter_r))) T)
+(T NIL)
+
+)
+) 
+
+
+;==============================================================================================================
+;FUNCIóN: intervalo_amarillo
+;NATURALEZA: PURA
+;ESTRATEGIA: Funcion Predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+.
+
+;SALIDA:
+;Retorna T si en el tiempo indicado el semáforo está en intermitente amarillo.
+;==============================================================================================================
+(defun intervalo_amarillo (tiempo-unix total rojo iter_r amarillo)
+	(cond
+	((and (>= (mod tiempo-unix total) (+ rojo iter_r)) (< (mod tiempo-unix total) (+ rojo iter_r amarillo))) T)
+	(T NIL))
+
+	
+)
+
+;==============================================================================================================
+;FUNCIóN: intervalo_iter_amarillo
+;NATURALEZA: PURA
+;ESTRATEGIA: Funcion Predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+.
+
+;SALIDA:
+;Retorna T si en el tiempo indicado el semáforo está en intermitente amarillo.
+;==============================================================================================================
+
+(defun intervalo_iter_amarillo(tiempo-unix total rojo iter_r amarillo iter_a)
+
+(cond
+	((and (>= (mod tiempo-unix total) (+ rojo iter_r amarillo)) (< (mod tiempo-unix total) (+ rojo iter_r amarillo iter_a))) T)
+	(T NIL))
+)
+
+;==============================================================================================================
+;FUNCIóN: intervalo_verde
+;NATURALEZA: PURA
+;ESTRATEGIA: Funcion Predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+;tiempo_unix: Entero que indica la cantidad de segundos 
+;total: El tiempo total del ciclo
+;rojo: el tiempo en rojo
+;amarillo: el tiempo del amarillo
+;verde: el tiempo del verde
+;iter_r: el tiempo de rojo intermitente
+;inter_a: el tiempo de amarillo intermitente
+;iter_v: el tiempo de verde intermitente
+;SALIDA:
+;Retorna T si en el tiempo indicado el semáforo está en verde.
+;==============================================================================================================
+(defun intervalo_verde(tiempo-unix total rojo iter_r amarillo iter_a verde)
+
+	(cond
+	((and (>= (mod tiempo-unix total) (+ rojo iter_r amarillo iter_a)) (< (mod tiempo-unix total) (+ rojo iter_r amarillo iter_a verde))) T)
+	(T NIL))	
+)
+
+
+;==============================================================================================================
+;FUNCIóN: intervalo_amarillo
+;NATURALEZA: PURA
+;ESTRATEGIA: Emplea condicionales
+;IMPACTO: No destructiva
+;ENTRADAS:
+;Entradas:
+;tiempo_unix: Entero que indica la cantidad de segundos desde el 
+;rojo: el tiempo en rojo
+;amarillo: el tiempo del amarillo
+;verde: el tiempo del verde
+;iter_r: el tiempo de rojo intermitente
+;inter_a: el tiempo de amarillo intermitente
+;iter_v: el tiempo de verde intermitente
+
+;SALIDA:
+;Retorna el color en el que se encuentra el semáforo
+;==============================================================================================================
+
+(defun timer_iter (tiempo-unix rojo amarillo verde iter_r iter_a iter_v)
+  (cond 
+		((intervalo_rojo tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r) 'en-rojo)
+		((intervalo_iter_rojo tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r) 'en-intermitente-rojo)
+        ((intervalo_amarillo tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r amarillo) 'en-amarillo)
+		((intervalo_iter_amarillo tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r amarillo iter_a) 'en-intermitente-amarillo)
+		((intervalo_verde tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r amarillo iter_a verde) 'en-verde)
+		(T 'en-intermitente-verde)
+
+	)
+
+)
+;Ejemplo de cómo usarlo
+(timer_iter (get-universal-time) (nth 0 (get_tiempo_colores)) (nth 1 (get_tiempo_colores)) (nth 2 (get_tiempo_colores)) 
+(nth 3 (get_tiempo_colores)) (nth 4 (get_tiempo_colores)) (nth 5 (get_tiempo_colores)))
+
+
+;===========================================================================================================
+
+;Función que muestra en pantalla los cambios de estado
+
+;Naturaleza: Función Impura
+;Estrategia De Control: No utiliza recursión, no utiliza funciones de orden 
+;superior, no es una función predicado. Emplea condicionales
+;Impacto En Memoria: No destructiva.
+
+;Entradas:
+;data_time: Entero que indica la cantidad de segundos desde el 
+;rojo: el tiempo en rojo
+;amarillo: el tiempo del amarillo
+;verde: el tiempo del verde
+;iter_r: el tiempo de rojo intermitente
+;inter_a: el tiempo de amarillo intermitente
+;iter_v: el tiempo de verde intermitente
+
+;Retorno:
+;Retorna una cadena que indica el cambio de color o indica el color en el que se encuentra el semáforo
+
+
+;===========================================================================================================
+(defun traffic_ligth_status_from_config(data_time rojo amarillo verde iter_r iter_a iter_v)
+
+(cond
+     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) rojo) "La luz ha cambiado de rojo a rojo-itermitente" )
+     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) (+ rojo iter_r)) "La luz ha cambiado de rojo-intermitente a amarillo" )
+     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) (+ rojo iter_r amarillo)) "La luz ha cambiado amarillo a amarillo-itermitente" )
+     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) (+ rojo iter_r amarillo iter_a)) "La luz ha cambiado amarillo-itermitente a verde" )
+     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) (+ rojo iter_r amarillo iter_a verde)) "La luz ha cambiado verde a verde-intermitente" )
+     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) 0) "La luz ha cambiado verde-intermitente a rojo" )
+     (T (timer_iter data_time rojo amarillo verde iter_r iter_a iter_v))
+))
+
+(traffic_ligth_status_from_config (get-unix-time) (nth 0 (get_tiempo_colores)) (nth 1 (get_tiempo_colores)) (nth 2 (get_tiempo_colores)) 
+(nth 3 (get_tiempo_colores)) (nth 4 (get_tiempo_colores)) (nth 5 (get_tiempo_colores)))
+
+;==============================================================================================================
+;INICIO Extensión 2: Persistencia de Datos
+;==============================================================================================================
+
+
+
+
+;==============================================================================================================
+;Funcion: informe
+;Permite almacenar en un archivo de texto los datos de las transiciones
+;Naturaleza: Función Impura
+;Estrategia De Control: No utiliza recursión, no utiliza funciones de orden 
+;superior, no es una función predicado.
+;Impacto En Memoria: No destructiva.
+;Entrada:
+
+;tiempo-inicial: El tiempo en el cual se quiere analizar si hubo una transición
+;archivo: La ruta del archivo. Se coloca una ruta por defecto
+
+;Salida: Muestra un mensaje con el estado en que se encuentra el semáforo. Si es una transición, almacena en
+;un archivo de texto la fecha y hora de la transición, así como la transición de la que se trata.
+;==============================================================================================================
+
+
+
+
+(defun informe (tiempo-inicial &optional (archivo "c:/Users/espin/OneDrive/Documentos/LISI/Paradigma/registro_semaforo.txt"))
+  (let ((estado (traffic_ligth_status tiempo-inicial)))
+    (format t "DEBUG: estado = ~a~%" estado)   ; imprime en pantalla para depuración
+    (unless (member estado '(en-rojo en-amarillo en-verde))
+      (with-open-file (out archivo
+                           :direction :output
+                           :if-exists :append
+                           :if-does-not-exist :create)
+        (format out "~%Tiempo ~a  ->  ~a~%"
+                (universal-to-datestring tiempo-inicial 0)
+                estado)
+        (finish-output out)))))
+
+
+;==============================================================================================================
+;Funcion: guardar_informe
+;Permite almacenar en un archivo de texto los datos de las transiciones que se producen desde una fecha inicial hasta
+;una cierta cantidad de segundos después de esa fecha.
+
+;Naturaleza: Función Impura
+;Estrategia De Control: Utiliza dotimes
+;Impacto En Memoria: No destructiva.
+;Entrada:
+
+;tiempo-inicial: El tiempo en el cual se quiere analizar si hubo una transición
+;ruta_archivo: La ruta del archivo. Se coloca una ruta por defecto
+;tiempo_max: La cantidad de segundos desde el tiempo_inicial en el cual se contabilizarán las transiciones
+
+;Salida: Muestra un mensaje con el estado en que se encuentra el semáforo. Si es una transición, almacena en
+;un archivo de texto la fecha y hora de la transición, así como la transición de la que se trata.
+;==============================================================================================================
+
+
+(defun guardar_informe (i max_iter)
+  (when (< i max_iter)
+    (informe (+ (get-universal-time) i))
+    (guardar_informe (1+ i) max_iter)))
+
+(guardar_informe 0 3600)
+
+
+;==============================================================================================================
+;FINALIZA Extensión 2: Persistencia de Datos
 ;==============================================================================================================
