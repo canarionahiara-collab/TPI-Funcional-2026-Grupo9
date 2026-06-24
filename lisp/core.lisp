@@ -467,12 +467,12 @@
 
 
 ;===========================================================================================================================================================================================
- ;Función: distribucion_colores
- ;Se encarga de entregar la cantidad de colores rojos, amarillos y verde que se presentaron en un intervalo de tiempo determinado
- ;NATURALEZA: PURA
- ;ESTRATEGIA: Recursividad De Cola
- ;IMPACTO: No destructiva
- ;Entradas
+;Función: distribucion-colores
+;NATURALEZA: PURA
+;ESTRATEGIA: Recursividad De Cola
+;IMPACTO: No destructiva
+;Se encarga de entregar la cantidad de colores rojos, amarillos y verde que se presentaron en un intervalo de tiempo determinado
+;Entradas
 
  ;tiempo_inicial: El tiempo usado como referencia en el cual se inicia el conteo de los colores
  ;tiempo_analizado: El tiempo preciso en el cual se quiere saber en que color está el semáforo
@@ -784,13 +784,13 @@
 
 
 ;==============================================================================================================
-;Funcion: guardar_informe
+;FUNCION: guardar_informe
 ;Permite almacenar en un archivo de texto los datos de las transiciones que se producen desde una fecha inicial hasta
 ;una cierta cantidad de segundos después de esa fecha.
 
-;Naturaleza: Función Impura
-;Estrategia De Control: Utiliza dotimes
-;Impacto En Memoria: No destructiva.
+;NATURALEZA: Función Impura
+;ESTRATEGIA: Utiliza dotimes
+;IMPACTO: No destructiva.
 ;Entrada:
 
 ;tiempo-inicial: El tiempo en el cual se quiere analizar si hubo una transición
