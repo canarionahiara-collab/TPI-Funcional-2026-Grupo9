@@ -558,49 +558,27 @@
 
 
 ;===========================================================================================================
-(defun traffic-light-status-from-config
-       (data-time rojo amarillo verde iter-r iter-a iter-v)
-
-  (cond
-    ((= (mod data-time
-             (+ rojo amarillo verde iter-r iter-a iter-v))
-        rojo)
+(defun traffic-light-status-from-config (data-time rojo amarillo verde iter-r iter-a iter-v)
+ (cond
+    ((= (mod data-time (+ rojo amarillo verde iter-r iter-a iter-v)) rojo)
      "La luz ha cambiado de rojo a rojo-intermitente")
 
-    ((= (mod data-time
-             (+ rojo amarillo verde iter-r iter-a iter-v))
-        (+ rojo iter-r))
+    ((= (mod data-time (+ rojo amarillo verde iter-r iter-a iter-v)) (+ rojo iter-r))
      "La luz ha cambiado de rojo-intermitente a amarillo")
 
-    ((= (mod data-time
-             (+ rojo amarillo verde iter-r iter-a iter-v))
-        (+ rojo iter-r amarillo))
+    ((= (mod data-time (+ rojo amarillo verde iter-r iter-a iter-v)) (+ rojo iter-r amarillo))
      "La luz ha cambiado de amarillo a amarillo-intermitente")
 
-    ((= (mod data-time
-             (+ rojo amarillo verde iter-r iter-a iter-v))
-        (+ rojo iter-r amarillo iter-a))
+    ((= (mod data-time (+ rojo amarillo verde iter-r iter-a iter-v)) (+ rojo iter-r amarillo iter-a))
      "La luz ha cambiado de amarillo-intermitente a verde")
 
-    ((= (mod data-time
-             (+ rojo amarillo verde iter-r iter-a iter-v))
-        (+ rojo iter-r amarillo iter-a verde))
+    ((= (mod data-time (+ rojo amarillo verde iter-r iter-a iter-v)) (+ rojo iter-r amarillo iter-a verde))
      "La luz ha cambiado de verde a verde-intermitente")
 
-    ((= (mod data-time
-             (+ rojo amarillo verde iter-r iter-a iter-v))
-        0)
+    ((= (mod data-time (+ rojo amarillo verde iter-r iter-a iter-v)) 0)
      "La luz ha cambiado de verde-intermitente a rojo")
 
-    (t
-     (timer-iter
-      data-time
-      rojo
-      amarillo
-      verde
-      iter-r
-      iter-a
-      iter-v))))
+    (t (timer-iter data-time rojo amarillo verde iter-r iter-a iter-v))))
 
 (traffic-light-status-from-config
  (get-unix-time)
