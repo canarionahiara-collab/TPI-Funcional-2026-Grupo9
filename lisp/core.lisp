@@ -419,9 +419,9 @@
  ;IMPACTO: No destructiva
  ;Entradas
 
- ;tiempo_inicial: El tiempo usado como referencia en el cual se inicia el conteo de los colores
- ;tiempo_analizado: El tiempo preciso en el cual se quiere saber en que color está el semáforo
- ;tiempo_max: La cantidad de segundos en el cual se quieren contar los colores desde el tiempo inicial
+ ;tiempo-inicial: El tiempo usado como referencia en el cual se inicia el conteo de los colores
+ ;tiempo-analizado: El tiempo preciso en el cual se quiere saber en que color está el semáforo
+ ;tiempo-max: La cantidad de segundos en el cual se quieren contar los colores desde el tiempo inicial
  ;cr: Cantidad de colores rojos
  ;ca: cantidad de colores amarillos
  ;cv: cantidad de colores verdes
@@ -432,7 +432,7 @@
 ;Salida
 
 ;Retorna una lista con la frecuencia de rojos, amarillos y verdes en el tiempo inicial indicado.
-;El formato de la lista es (frecuencia_rojos frecuencia_amarillos frecuencia_verde)
+;El formato de la lista es (frecuencia-rojos frecuencia-amarillos frecuencia-verde)
 
  ;============================================================================================================================================================================================
 
@@ -812,8 +812,8 @@
 
 (calcular-porcentajes (distribucion-colores (get-unix-time) 0 3600 0 0 0))
 
-(informe (get-unix-time))
+;;(informe (get-unix-time))
 
-(guardar-informe (get-unix-time) 0 300)
+;;(guardar-informe (get-unix-time) 0 300)
 
-(guardar-informe-iter (get-unix-time) 0 300)
+;;(guardar-informe-iter (get-unix-time) 0 300)
