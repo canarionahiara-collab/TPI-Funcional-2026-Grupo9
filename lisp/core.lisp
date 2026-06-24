@@ -74,49 +74,14 @@
 ;==============================================================================================================
 ;INICIA REQUERIMIENTO 2
 ;==============================================================================================================
-
-;=====================================================================================================================
-
-;Función: timer-transition (se le cambia el nombre, para que no choque con los nombres de otras bibliotecas) 
-; Permite obtener el color en el que está el semáforo para un tiempo  en segundos pasado como parámetro
-
-;Naturaleza: FunciÃ³n Pura
-;Estrategia: No utiliza recursiÃ³n, no utiliza funciones de orden superior, no es una funcion predicado
-;Impacto: No destructiva
-
-;Entradas:
-;data-time: Entero que indica la cantidad de segundos desde el 
-;arranque del semÃ¡foro
-
-;Retorno:
-;Retorna una constante que indica el estado en el que se encuentra el 
-;semÃ¡foro en el tiempo pasado.
-;NOTA: Este supone que el tiempo total del ciclo rojo->amarillo->verde->rojo es 216 
-;y que los tiempos son rojo=90s, amarillo=6s, verde=120s. Esta fue la primera que se hizo
-
-;====================================================================================================================
-
-(defun timer-transition(data-time)
-
-  (cond 
-    ((< (mod data-time 216) 90) 'en-rojo )
-    ( (and (>= (mod data-time 216) 90) (<= (mod data-time 216) 95)) 'en-amarillo)
-     ( (and (>= (mod data-time 216) 96) (<= (mod data-time 216) 215)) 'en-verde)
-  )
-)
-
-(timer-transition (get-universal-time))
-;==============================================================================================================
-;FUNCIóN: timer-2
+;Requerimiento 2: Temporizador Automático
+;FUNCIóN: timer
 ;NATURALEZA: PURA
-;ESTRATEGIA: Se utilizan condicionales.
+;ESTRATEGIA: Utiliza funciones de orden superior y condicionales
 ;IMPACTO: No destructiva
 
 ;ENTRADAS:
 ;tiempo-unix: Es un entero que representa el tiempo unix de una fecha en particular.
-;rojo: Representa el tiempo en segundos que el semáforo permanece en rojo
-;amarillo: Representa el tiempo en segundos que el semáforo permanece en amarillo
-;verde: Representa el tiempo en segundos que el semáforo permanece en verde.
 
 ;SALIDA:
 ;Retorna un átomo que indica el color en el que se encuentra el semáforo para el tiempo unix pasado.
@@ -124,51 +89,48 @@
 ;1970. Se deben pasar los datos de los tiempos. Estos datos se deben obtener del archivo config.json
 ;NOTA: Esta es la que recupera los datos de los tiempos desde config.json
 ;==============================================================================================================
-(defun timer-2 (tiempo-unix rojo amarillo verde)
-  (cond ((and (>= (mod tiempo-unix (+ rojo amarillo verde)) 0) (<= (mod tiempo-unix (+ rojo amarillo verde)) (- rojo 1))) 'en-rojo) 
-		((and (>= (mod tiempo-unix (+ rojo amarillo verde)) rojo) (< (mod tiempo-unix (+ rojo amarillo verde)) (+ rojo amarillo))) 'en-amarillo)
-		(T 'en-verde)
+(defun timer (tiempo-unix)
+  (let* ((tiempos (or (get-tiempo-colores) '(90 6 120)))         ; lista (rojo amarillo verde)
+         (rojo (first tiempos))
+         (amarillo (second tiempos))
+         (tiempo-total (reduce #'+ tiempos)))    ; suma de los tres
+    (cond
+      ((and (>= (mod tiempo-unix tiempo-total) 0)
+            (<= (mod tiempo-unix tiempo-total) (- rojo 1)))
+       'en-rojo)
+      ((and (>= (mod tiempo-unix tiempo-total) rojo)
+            (< (mod tiempo-unix tiempo-total) (+ rojo amarillo)))
+       'en-amarillo)
+      (t 'en-verde))))
 
-	)
 
-)
+
 
 ;==============================================================================================================
-;FUNCIóN: get-tiempo-colores
+;Requerimiento 2: Temporizador Automático
+;FUNCIóN: control-timer
 ;NATURALEZA: PURA
-;ESTRATEGIA: No se utilizan condicionales.
+;ESTRATEGIA: Utiliza funciones condicionales
 ;IMPACTO: No destructiva
+
 ;ENTRADAS:
-.
+;tiempo-unix: Es un entero que representa el tiempo unix de una fecha en particular.
+;lista-tiempos: La lista de tiempo de los colores obtenidos desde el archivo config.json
 
 ;SALIDA:
-;Retorna una lista con los tiempos de duración para cada color. Los datos se leen del archivo config.json.
-;El formato de la salida es (tiempo_rojo tiempo_amarillo tiempo_verde). Se requiere la bliblioteca quicklisp
-;y debe importarse la biblioteca mediante (ql:quickload :cl-json)
-;==============================================================================================================
-(defun get-tiempo-colores ()
+;Retorna un mensaje de error en caso de que algunas condiciones no se cumplan.
+;En caso de que ningún error ocurra, ejecuta la funcion timer
 
-  (with-open-file (stream "C:/Users/Usuario/Downloads/TPI-Funcional-2026-Grupo[9]/lisp/config.json"
-                          :direction :input
-                          :if-does-not-exist nil)
-    (unless stream
-      (error "No se pudo abrir el archivo"))
-    (let ((datos (json:decode-json stream))) (list (cdr (assoc :ROJO datos)) (cdr (assoc :AMARILLO datos)) (cdr (assoc :VERDE datos)) ) )))
-
-
-
-(timer-2 (get-universal-time) (car (get-tiempo-colores)) (car (cdr (get-tiempo-colores))) (car (cddr (get-tiempo-colores))))
-
-
-(defun control-timer(tiempo-unix rojo amarillo verde)
+(defun control-timer (tiempo-unix lista-tiempos)
 	(cond ((< tiempo-unix 0 ) "El tiempo no puede ser menor a cero")
-		  ((<= rojo 0) "El tiempo del semáforo en rojo no puede ser cero o menos")
-		  (T (timer-2 tiempo-unix rojo amarillo verde))
+		  ((<= (nth 0 lista-tiempos) 0) "El tiempo del semáforo en rojo no puede ser cero o menos")
+      ((<= (nth 1 lista-tiempos) 0) "El tiempo del semáforo en amarillo no puede ser cero o menos")
+      ((<= (nth 2 lista-tiempos) 0) "El tiempo del semáforo en verde no puede ser cero o menos")
+		  (T (timer tiempo-unix))
 
 	)
 )
-
-(control-timer (get-universal-time) (car (get-tiempo-colores)) (car (cdr (get-tiempo-colores))) (car (cddr (get-tiempo-colores))))
+;=====================================================================================================================
 
 ;==============================================================================================================
 ;FINALIZA REQUERIMIENTO 2
