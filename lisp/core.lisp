@@ -38,12 +38,11 @@
 
 ;===========================================================================================================
 
-;Función que muestra la informaciÃ³n de cambio de estado
-
-;Naturaleza: FunciÃ³n Pura
-;Estrategia De Control: No utiliza recursiÃ³n, no utiliza funciones de orden 
-;superior, no es una funciÃ³n predicado.
-;Impacto En Memoria: No destructiva.
+;Función que muestra la informacion de cambio de estado
+;FUNCIÓN: transicion
+;NATURALEZA: Pura
+;ESTRATEGIA: No utiliza recursion, no utiliza funciones de orden superior, no es una funcion predicado.
+;IMPACTO: No destructiva.
 
 ;Entradas:
 ;color-actual: Determina el color en el que se encuentra actualmente el semÃ¡foro
@@ -77,13 +76,11 @@
 
 ;=====================================================================================================================
 
-;Función: timer_transition (se le cambia el nombre, para que no choque con los nombres de otras bibliotecas) 
-; Permite obtener el color en el que está el semáforo para un tiempo  en segundos pasado como parámetro
-
-;Naturaleza: FunciÃ³n Pura
-;Estrategia De Control: No utiliza recursiÃ³n, no utiliza funciones de orden 
-;superior, no es una funciÃ³n predicado.
-;Impacto En Memoria: No destructiva.
+;FUNCION: timer-transition (se le cambia el nombre, para que no choque con los nombres de otras bibliotecas) 
+;Permite obtener el color en el que está el semáforo para un tiempo  en segundos pasado como parámetro
+;NATURALEZA: Pura
+;ESTRATEGIA: No utiliza recursiÃ³n, no utiliza funciones de orden superior, no es una funcion predicado
+;IMPACTO: No destructiva.
 
 ;Entradas:
 ;data_time: Entero que indica la cantidad de segundos desde el 
@@ -97,7 +94,7 @@
 
 ;====================================================================================================================
 
-(defun timer_transition(data_time)
+(defun timer-transition(data_time)
 
   (cond 
     ((< (mod data_time 216) 90) 'en-rojo )
@@ -106,9 +103,9 @@
   )
 )
 
-(timer_transition (get-universal-time))
+(timer-transition (get-universal-time))
 ;==============================================================================================================
-;FUNCIóN: timer_2
+;FUNCION: timer-2
 ;NATURALEZA: PURA
 ;ESTRATEGIA: Se utilizan condicionales.
 ;IMPACTO: No destructiva
@@ -125,7 +122,7 @@
 ;1970. Se deben pasar los datos de los tiempos. Estos datos se deben obtener del archivo config.json
 ;NOTA: Esta es la que recupera los datos de los tiempos desde config.json
 ;==============================================================================================================
-(defun timer_2 (tiempo-unix rojo amarillo verde)
+(defun timer-2 (tiempo-unix rojo amarillo verde)
   (cond ((and (>= (mod tiempo-unix (+ rojo amarillo verde)) 0) (<= (mod tiempo-unix (+ rojo amarillo verde)) (- rojo 1))) 'en-rojo) 
 		((and (>= (mod tiempo-unix (+ rojo amarillo verde)) rojo) (< (mod tiempo-unix (+ rojo amarillo verde)) (+ rojo amarillo))) 'en-amarillo)
 		(T 'en-verde)
@@ -135,7 +132,7 @@
 )
 
 ;==============================================================================================================
-;FUNCIóN: get_tiempo_colores
+;FUNCIóN: get-tiempo-colores
 ;NATURALEZA: PURA
 ;ESTRATEGIA: No se utilizan condicionales.
 ;IMPACTO: No destructiva
@@ -147,7 +144,7 @@
 ;El formato de la salida es (tiempo_rojo tiempo_amarillo tiempo_verde). Se requiere la bliblioteca quicklisp
 ;y debe importarse la biblioteca mediante (ql:quickload :cl-json)
 ;==============================================================================================================
-(defun get_tiempo_colores ()
+(defun get-tiempo-colores ()
 
   (with-open-file (stream "C:/Users/Usuario/Downloads/TPI-Funcional-2026-Grupo[9]/lisp/config.json"
                           :direction :input
@@ -158,13 +155,13 @@
 
 
 
-(timer_2 (get-universal-time) (car (get_tiempo colores)) (car (cdr (get_tiempo_colores))) (car (cddr (get_tiempo_colores))))
+(timer-2 (get-universal-time) (car (get_tiempo colores)) (car (cdr (get_tiempo_colores))) (car (cddr (get_tiempo_colores))))
 
 
-(defun control_timer(tiempo-unix rojo amarillo verde)
+(defun control-timer(tiempo-unix rojo amarillo verde)
 	(cond ((< tiempo_unix 0 ) "El tiempo no puede ser menor a cero")
 		  ((<= rojo 0) "El tiempo del semáforo en rojo no puede ser cero o menos")
-		  (T (timer_2 tiempo-unix rojo amarillo verde))
+		  (T (timer-2 tiempo-unix rojo amarillo verde))
 
 	)
 )
@@ -382,8 +379,23 @@
 ;INICIA REQUERIMIENTO 4
 ;==============================================================================================================
 
+;; REQUERIMIENTO 4a: Recomendación de Ciclos
+;; FUNCION: duracion-ciclo
+;; NATURALEZA: Pura
+;; ESTRATEGIA: funcion de orden superior
+;; IMPACTO: No destructiva
+;; Entradas
+;; lista-tiempos: Representa la lista de los tiempos obtenidas desde el archivo config.json
+
+;;Retorno: Retorna un entero que representa el tiempo total del ciclo
+;; ========================================================
+(defun duracion-ciclo (lista-tiempos)
+  (reduce #'+ lista-tiempos)
+)
+
+
 ;===========================================================================================================================================================================================
- 
+;;REQUERIMIENTO 4b: Recomendación de Ciclos
 ;FUNCION: recomendacion-ciclo
 ;Permite recomendar un tiempo adecuado para el ciclo rojo->amarillo->verde->rojo
 

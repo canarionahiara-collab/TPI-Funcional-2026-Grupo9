@@ -1,0 +1,9 @@
+# Archivos compilados de Lisp
+*.fasl
+
+# Archivos de configuración
+config.txt
+
+# Versiones específicas de core (copias de seguridad o duplicados)
+core (2).lisp
+core(2).lisp
