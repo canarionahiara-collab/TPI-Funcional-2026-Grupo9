@@ -1,11 +1,21 @@
-;IMPORTANTE!!!!
+
+;=====================================================================================================
+;Se define un paquete auxiliar para que no entre en conflicto con la función timer
+;definida en Portacle
+;======================================================================================================
+(defpackage :semaforo 
+  (:use :common-lisp)
+  (:export :timer :estado-semaforo))
+
+(in-package :semaforo)
 ;Cuando usas la biblioteca quicklisp se deben importar primero las bibliotecas local-time y cl-json
 ;Para importar local-time: (ql:quickload :local-time)
 ;Para importar cl-json: (ql:quickload :cl-json)
 
-(ql:quickload :local-time)
-(ql:quickload :cl-json)
-
+;;; Cargar bibliotecas necesarias antes de compilar o ejecutar
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (ql:quickload :local-time)
+  (ql:quickload :cl-json))
 
 
 
@@ -15,10 +25,13 @@
 ;Prompt De ChatGPT: Cómo se obtiene en lisp esto: Tiempo Unix actual (entero)
 
 
+
+
+
 ;==============================================================================================================
 ;FUNCIóN: get-unix-time
-;NATURALEZA: PURA
-;ESTRATEGIA: No se usan estructuras de control.
+;NATURALEZA: IMPURA
+;ESTRATEGIA: No es recursiva. No emplea funciones de orden superior. No es una función predicado
 ;IMPACTO: No destructiva
 ;ENTRADAS:
 ;Sin entradas
@@ -32,16 +45,110 @@
 (defun get-unix-time ()
   (local-time:timestamp-to-unix (local-time:now)))
 
+
+;==============================================================================================================
+;FUNCIóN: universal-a-unix
+;NATURALEZA: PURA
+;ESTRATEGIA:  No es recursiva. No emplea funciones de orden superior. No es una función predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+;utime: Un tiempo en tiempo universal para convertir a unix
+
+;SALIDA:
+;Retorna un entero que representa el tiempo unix.
+;==============================================================================================================
+(defun universal-a-unix (utime)
+
+  (- utime 2208988800))
+
+
+;===========================================================================================================
+;FUNCIóN: tiempo-a-string
+;NATURALEZA: PURA
+;ESTRATEGIA:  No es recursiva. No emplea funciones de orden superior. No es una función predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+;utime: Recibe el tiempo en segundos de una fecha determinada en tiempo unix
+;
+;SALIDA:
+;Retorna un string con el formato "AAAA-MM-DD HH:MM:SS"
+;==============================================================================================================
+(defun tiempo-a-string (utime)
+  "Convierte tiempo universal (segundos desde 1900) a cadena en hora de Buenos Aires (UTC-3)."
+  (let ((utime-ajustado (- utime (* 3 3600))))   ; restamos 3 horas
+    (multiple-value-bind (seg min hora dia mes anio)
+        (decode-universal-time utime-ajustado 0)
+      (format nil "~4d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d"
+              anio mes dia hora min seg))))
+
+;==============================================================================================================
+;FUNCIóN: get-tiempo-colores
+;NATURALEZA: IMPURA
+;ESTRATEGIA:  No es recursiva. No emplea funciones de orden superior. No es una función predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+;  config-path: Ruta al archivo config.json (opcional, por defecto "config.json")
+;SALIDA:
+;  Retorna una lista con los tiempos de duración para cada color: (tiempo_rojo tiempo_amarillo tiempo_verde).
+;  Si el archivo no existe, retorna la lista vacía ().
+;==============================================================================================================
+(defun get-tiempo-colores (&optional (config-path "config.json"))
+  (let* ((base-dir (if *load-truename*
+                       (make-pathname :directory (pathname-directory *load-truename*))
+                       *default-pathname-defaults*))
+         (full-path (merge-pathnames config-path base-dir)))
+    (with-open-file (stream full-path
+                            :direction :input
+                            :if-does-not-exist nil)
+      (if stream
+          (let ((datos (json:decode-json stream)))
+            (list (cdr (assoc :ROJO datos))
+                  (cdr (assoc :AMARILLO datos))
+                  (cdr (assoc :VERDE datos))))
+          '()))))   ; <--- retorna lista vacía si no se pudo abrir
+
+;==============================================================================================================
+;FUNCIóN: get-tiempo-colores-iter
+;NATURALEZA: IMPURA
+;ESTRATEGIA:  No es recursiva. No emplea funciones de orden superior. No es una función predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+;  config-path: Ruta al archivo config.json (opcional, por defecto "config.json")
+;SALIDA:
+;  Retorna una lista con los tiempos de duración para cada color y sus intermitencias:
+;  (tiempo_rojo tiempo_amarillo tiempo_verde tiempo_iter_rojo tiempo_iter_amarillo tiempo_iter_verde).
+;  Si el archivo no existe, retorna la lista vacía ().
+;==============================================================================================================
+(defun get-tiempo-colores-iter (&optional (config-path "config.json"))
+  (let* ((base-dir (if *load-truename*
+                       (make-pathname :directory (pathname-directory *load-truename*))
+                       *default-pathname-defaults*))
+         (full-path (merge-pathnames config-path base-dir)))
+    (with-open-file (stream full-path
+                            :direction :input
+                            :if-does-not-exist nil)
+      (if stream
+          (let ((datos (json:decode-json stream)))
+            (list (cdr (assoc :ROJO datos))
+                  (cdr (assoc :AMARILLO datos))
+                  (cdr (assoc :VERDE datos))
+                  (cdr (assoc :itr datos))
+                  (cdr (assoc :ita datos))
+                  (cdr (assoc :itv datos))))
+          '()))))   ; <--- retorna lista vacía si no se pudo abrir
+
+
+
 ;==============================================================================================================
 ;INICIA REQUERIMIENTO 1
 ;==============================================================================================================
 
 ;===========================================================================================================
 
-;Función que muestra la informacion de cambio de estado
+;Función que muestra la información de cambio de estado
 ;FUNCIÓN: transicion
-;NATURALEZA: Pura
-;ESTRATEGIA: No utiliza recursion, no utiliza funciones de orden superior, no es una funcion predicado.
+;NATURALEZA: PURA
+;ESTRATEGIA:No utiliza recursión, no utiliza funciones de orden superior, no es una funcion predicado.
 ;IMPACTO: No destructiva.
 
 ;Entradas:
@@ -56,7 +163,7 @@
 ;y el segundo indica el color al cual cambia
 
 ;===========================================================================================================
-(defun transicion(color-actual cambiar-a)
+(defun transicion (color-actual cambiar-a)
   (cond ((and (eq color-actual 'en-rojo) (eq cambiar-a 'amarillo)) (list color-actual "cambiar-a-amarillo"))
         ((and (eq color-actual 'en-amarillo) (eq cambiar-a 'verde))(list color-actual "cambiar-a-verde"))
         ((and(eq color-actual 'en-verde) (eq cambiar-a 'rojo)) (list color-actual "cambiar-a-rojo"))
@@ -74,47 +181,16 @@
 ;INICIA REQUERIMIENTO 2
 ;==============================================================================================================
 
-;=====================================================================================================================
 
-;FUNCION: timer-transition (se le cambia el nombre, para que no choque con los nombres de otras bibliotecas) 
-;Permite obtener el color en el que está el semáforo para un tiempo  en segundos pasado como parámetro
-;NATURALEZA: Pura
-;ESTRATEGIA: No utiliza recursiÃ³n, no utiliza funciones de orden superior, no es una funcion predicado
-;IMPACTO: No destructiva.
-
-;Entradas:
-;data_time: Entero que indica la cantidad de segundos desde el 
-;arranque del semÃ¡foro
-
-;Retorno:
-;Retorna una constante que indica el estado en el que se encuentra el 
-;semÃ¡foro en el tiempo pasado.
-;NOTA: Este supone que el tiempo total del ciclo rojo->amarillo->verde->rojo es 216 
-;y que los tiempos son rojo=90s, amarillo=6s, verde=120s. Esta fue la primera que se hizo
-
-;====================================================================================================================
-
-(defun timer-transition(data_time)
-
-  (cond 
-    ((< (mod data_time 216) 90) 'en-rojo )
-    ( (and (>= (mod data_time 216) 90) (<= (mod data_time 216) 95)) 'en-amarillo)
-     ( (and (>= (mod data_time 216) 96) (<= (mod data_time 216) 215)) 'en-verde)
-  )
-)
-
-(timer-transition (get-universal-time))
 ;==============================================================================================================
-;FUNCION: timer-2
+;Requerimiento 2: Temporizador Automático
+;FUNCIóN: timer
 ;NATURALEZA: PURA
-;ESTRATEGIA: Se utilizan condicionales.
+;ESTRATEGIA: Utiliza funciones de orden superior y condicionales
 ;IMPACTO: No destructiva
 
 ;ENTRADAS:
 ;tiempo-unix: Es un entero que representa el tiempo unix de una fecha en particular.
-;rojo: Representa el tiempo en segundos que el semáforo permanece en rojo
-;amarillo: Representa el tiempo en segundos que el semáforo permanece en amarillo
-;verde: Representa el tiempo en segundos que el semáforo permanece en verde.
 
 ;SALIDA:
 ;Retorna un átomo que indica el color en el que se encuentra el semáforo para el tiempo unix pasado.
@@ -122,52 +198,47 @@
 ;1970. Se deben pasar los datos de los tiempos. Estos datos se deben obtener del archivo config.json
 ;NOTA: Esta es la que recupera los datos de los tiempos desde config.json
 ;==============================================================================================================
-(defun timer-2 (tiempo-unix rojo amarillo verde)
-  (cond ((and (>= (mod tiempo-unix (+ rojo amarillo verde)) 0) (<= (mod tiempo-unix (+ rojo amarillo verde)) (- rojo 1))) 'en-rojo) 
-		((and (>= (mod tiempo-unix (+ rojo amarillo verde)) rojo) (< (mod tiempo-unix (+ rojo amarillo verde)) (+ rojo amarillo))) 'en-amarillo)
-		(T 'en-verde)
+(defun timer (tiempo-unix)
+  (let* ((tiempos (or (get-tiempo-colores) '(90 6 120)))         ; lista (rojo amarillo verde)
+         (rojo (first tiempos))
+         (amarillo (second tiempos))
+         (tiempo-total (reduce #'+ tiempos)))    ; suma de los tres
+    (cond
+      ((and (>= (mod tiempo-unix tiempo-total) 0)
+            (<= (mod tiempo-unix tiempo-total) (- rojo 1)))
+       'en-rojo)
+      ((and (>= (mod tiempo-unix tiempo-total) rojo)
+            (< (mod tiempo-unix tiempo-total) (+ rojo amarillo)))
+       'en-amarillo)
+      (t 'en-verde))))
 
-	)
 
-)
+
 
 ;==============================================================================================================
-;FUNCIóN: get-tiempo-colores
+;Requerimiento 2: Temporizador Automático
+;FUNCIóN: control-timer
 ;NATURALEZA: PURA
-;ESTRATEGIA: No se utilizan condicionales.
+;ESTRATEGIA: Utiliza funciones condicionales
 ;IMPACTO: No destructiva
+
 ;ENTRADAS:
-.
+;tiempo-unix: Es un entero que representa el tiempo unix de una fecha en particular.
+;lista-tiempos: La lista de tiempo de los colores obtenidos desde el archivo config.json
 
 ;SALIDA:
-;Retorna una lista con los tiempos de duración para cada color. Los datos se leen del archivo config.json.
-;El formato de la salida es (tiempo_rojo tiempo_amarillo tiempo_verde). Se requiere la bliblioteca quicklisp
-;y debe importarse la biblioteca mediante (ql:quickload :cl-json)
-;==============================================================================================================
-(defun get-tiempo-colores ()
+;Retorna un mensaje de error en caso de que algunas condiciones no se cumplan.
+;En caso de que ningún error ocurra, ejecuta la funcion timer
 
-  (with-open-file (stream "C:/Users/Usuario/Downloads/TPI-Funcional-2026-Grupo[9]/lisp/config.json"
-                          :direction :input
-                          :if-does-not-exist nil)
-    (unless stream
-      (error "No se pudo abrir el archivo"))
-    (let ((datos (json:decode-json stream))) (list (cdr (assoc :ROJO datos)) (cdr (assoc :AMARILLO datos)) (cdr (assoc :VERDE datos)) ) )))
-
-
-
-(timer-2 (get-universal-time) (car (get_tiempo colores)) (car (cdr (get_tiempo_colores))) (car (cddr (get_tiempo_colores))))
-
-
-(defun control-timer(tiempo-unix rojo amarillo verde)
-	(cond ((< tiempo_unix 0 ) "El tiempo no puede ser menor a cero")
-		  ((<= rojo 0) "El tiempo del semáforo en rojo no puede ser cero o menos")
-		  (T (timer-2 tiempo-unix rojo amarillo verde))
+(defun control-timer (tiempo-unix lista-tiempos)
+	(cond ((< tiempo-unix 0 ) "El tiempo no puede ser menor a cero")
+		  ((<= (nth 0 lista-tiempos) 0) "El tiempo del semáforo en rojo no puede ser cero o menos")
+      ((<= (nth 1 lista-tiempos) 0) "El tiempo del semáforo en amarillo no puede ser cero o menos")
+      ((<= (nth 2 lista-tiempos) 0) "El tiempo del semáforo en verde no puede ser cero o menos")
+		  (T (timer tiempo-unix))
 
 	)
 )
-
-(control_timer (get-universal-time) (car (get_tiempo_colores)) (car (cdr (get_tiempo_colores))) (car (cddr (get_tiempo_colores))))
-
 ;==============================================================================================================
 ;FINALIZA REQUERIMIENTO 2
 ;==============================================================================================================
@@ -177,119 +248,51 @@
 ;INICIA REQUERIMIENTO 3
 ;==============================================================================================================
 
-;===========================================================================================================
-;FUNCIóN: universal-to-datestring
-;NATURALEZA: PURA
-;ESTRATEGIA: No se utilizan condicionales
-;IMPACTO: No destructiva
-;ENTRADAS:
-;utime: Recibe el tiempo en segundos de una fecha determinada
-;
-;SALIDA:
-;Retorna un string con el formato "AAAA-MM-DD HH:MM:SS"
-;==============================================================================================================
-(defun universal-to-datestring (utime &optional (timezone 0))
-  (multiple-value-bind (seg min hora dia mes anio)
-      (decode-universal-time utime timezone)
-    (format nil "~4d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d"
-            anio mes dia hora min seg)))
-
-
-;(universal-to-datestring (get-universal-time))
 
 
 ;===========================================================================================================
 
-;FunciÃ³n que muestra en pantalla los cambios de estado
-
-;Naturaleza: FunciÃ³n Impura
-;Estrategia De Control: No utiliza recursiÃ³n, no utiliza funciones de orden 
-;superior, no es una funciÃ³n predicado.
-;Impacto En Memoria: No destructiva.
+;Requerimiento 3: Sistema de Auditoría
+;Función: estado-semaforo
+;NATURALEZA: Impura
+;ESTRATEGIA De Control: No utiliza recursión, no utiliza funciones de orden. Empleado condicionales. 
+;superior, no es una función predicado.
+;IMPACTO En Memoria: No destructiva.
 
 ;Entradas:
 ;data_time: Entero que indica la cantidad de segundos desde el 
-;arranque del semÃ¡foro
+;arranque del semáforo
 
 ;Retorno:
 ;Retorna una cadena que indica el cambio de color o indica el color en el que se encuentra el semáforo
 ;NOTA: Esta versión presupone que rojo=90s, amarillo=6s y verde=120s.
 
 ;===========================================================================================================
-(defun traffic_ligth_status(data_time)
+(defun estado-semaforo (tiempo-unix)
+  (let* ((tiempos (get-tiempo-colores))
+         (rojo (first tiempos))
+         (amarillo (second tiempos))
+         (total (reduce #'+ tiempos))
+         (resto (mod tiempo-unix total)))
+    (cond
+      ((= resto rojo) "La luz ha cambiado de rojo a amarillo")
+      ((= resto (+ rojo amarillo)) "La luz ha cambiado de amarillo a verde")
+      ((= resto 0) "La luz ha cambiado de verde a rojo")
+      (t (timer tiempo-unix)))))
 
-(cond
-     ((= (mod data_time 216) 90) "La luz ha cambiado de rojo a amarillo" )
-     ((= (mod data_time 216) 96) "La luz ha cambiado de amarillo a verde" )
-     ((= (mod data_time 216) 0) "La luz ha cambiado de verde a rojo" )
-     (T (timer_transition data_time))
-))
-
-
-;===========================================================================================================
-
-;Función que muestra en pantalla los cambios de estado
-
-;Naturaleza: FunciÃ³n Impura
-;Estrategia De Control: No utiliza recursiÃ³n, no utiliza funciones de orden 
-;superior, no es una funciÃ³n predicado.
-;Impacto En Memoria: No destructiva.
-
-;Entradas:
-;data_time: Entero que indica la cantidad de segundos desde el 
-;arranque del semÃ¡foro
-
-;Retorno:
-;Retorna una cadena que indica el cambio de color o indica el color en el que se encuentra el semáforo
-;NOTA: Esta versión presupone que rojo=90s, amarillo=6s y verde=120s.
-
-;===========================================================================================================
-(defun traffic_ligth_status_from_config(data_time rojo amarillo verde)
-
-(cond
-     ((= (mod data_time (+ rojo amarillo verde)) rojo) "La luz ha cambiado de rojo a amarillo" )
-     ((= (mod data_time (+ rojo amarillo verde)) (+ rojo amarillo)) "La luz ha cambiado de amarillo a verde" )
-     ((= (mod data_time (+ rojo amarillo verde)) 0) "La luz ha cambiado de verde a rojo" )
-     (T (timer_2 data_time rojo amarillo verde))
-))
 
 
 
 
 
 ;===========================================================================================================
-
-;Funcion: registrar_cambios
-;Se encarga de mostrar en pantalla el color en el que se encuentra el semáforo en un momento dado o
-;la transición de estados
-;Naturaleza: FunciÃ³n Impura
-;Estrategia De Control: No utiliza recursiÃ³n, no utiliza funciones de orden 
-;superior, no es una funciÃ³n predicado.
-;Impacto En Memoria: No destructiva.
-
-;Entradas:
-;tiempo-inicial: El tiempo en el cual se revisará el color en el que se encuentra el semáforo o si hay una 
-;transición
-
-;Retorno:
-;Retorna una cadena que indica el cambio de color o indica el color en el que se encuentra el semáforo
-
-;===========================================================================================================
-(defun registrar_cambios(tiempo-inicial)
-    
-	(format t "Tiempo ~a  ->  ~a~%"
-              (universal-to-datestring tiempo-inicial 0)
-              (traffic_ligth_status tiempo-inicial))
-)
-
-;===========================================================================================================
-
-;Funcion: registrar_cambios_2
+;Requerimiento 3: Sistema de Auditoría
+;Funcion: registrar-cambios
 ;Se encarga de mostrar en pantalla sólo las transiciones de colores
-;Naturaleza: FunciÃ³n Impura
-;Estrategia De Control: No utiliza recursiÃ³n, no utiliza funciones de orden 
-;superior, no es una funciÃ³n predicado.
-;Impacto En Memoria: No destructiva.
+;NATURALEZA: FUNCIÓN Impura
+;ESTRATEGIA De Control: No utiliza recursiÃ³n, no utiliza funciones de orden 
+;superior, no es una FUNCIÓNpredicado.
+;IMPACTO En Memoria: No destructiva.
 
 ;Entradas:
 ;tiempo-inicial: El tiempo en el cual se revisará el color en el que se encuentra el semáforo o si hay una 
@@ -299,86 +302,34 @@
 ;Retorna una cadena que indica el tiempo en el cual se produjo la transición de colores.
 
 ;===========================================================================================================
-(defun registrar_cambios_2 (tiempo-inicial)
+(defun registrar-cambios (tiempo-inicial)
   ;estado puede tener: 'en-rojo, 'en-verde, 'en-amarillo, o La luz ha cambiado de rojo a amarillo
   ;La luz ha cambiado de amarillo a verde
   ;La luz ha cambiado de verde a rojo
-  (let ((estado (traffic_ligth_status tiempo-inicial)))
+  (let ((estado (estado-semaforo tiempo-inicial)))
 	;Si estado tiene 'en-rojo, 'en-amarillo o 'en-verde, los ignora
     (unless (member estado '(en-rojo en-amarillo en-verde))
       (format t "Tiempo ~a  ->  ~a~%"
-              (universal-to-datestring tiempo-inicial 0)
+              (tiempo-a-string tiempo-inicial)
               estado))))
 
 ;(registrar_cambios(get-universal-time))
 
-(dotimes(segundo 320)
-(registrar_cambios (+ (get-universal-time) segundo)))
-
-
-
-
-
-;===========================================================================================================
-;FUNCIóN: parse-fecha
-;NATURALEZA: PURA
-;ESTRATEGIA: No se utilizan condicionales
-;IMPACTO: No destructiva
-;ENTRADAS:
-;fecha-hora-str: Es un sting en formato AAAA/MM/DD HH:MM:SS (Anio-Mes-Dia Hora:Minuto-Segundo).
-;Supone que la está en UTC.
-;
-;SALIDA:
-;Retorna cinco enteros que representan los segundos, los minutos, la hora, el día, el mes y el año del
-;string pasado como parámetro.
-;==============================================================================================================
-(defun parse-fecha (fecha-hora-str)
- 
-  (flet ((to-int (s) (parse-integer s)))
-    (let ((fecha (subseq fecha-hora-str 0 10))
-          (hora  (subseq fecha-hora-str 11 19)))
-      (multiple-value-bind (year month day)
-          (values (to-int (subseq fecha 0 4))
-                  (to-int (subseq fecha 5 7))
-                  (to-int (subseq fecha 8 10)))
-        (multiple-value-bind (hour minute second)
-            (values (to-int (subseq hora 0 2))
-                    (to-int (subseq hora 3 5))
-                    (to-int (subseq hora 6 8)))
-          (local-time:encode-timestamp 0 second minute hour day month year :offset 0))))))
 
 
 
 ;==============================================================================================================
-;FUNCIóN: diferencia-tiempo
-;NATURALEZA: PURA
-;ESTRATEGIA: No se utilizan condicionales
-;IMPACTO: No destructiva
-;ENTRADAS:
-;fecha-hora-str: Es un sting en formato AAAA/MM/DD HH:MM:SS (Anio-Mes-Dia Hora:Minuto-Segundo)
-
-;SALIDA:
-;Retorna un entero que representa, en segundos, la diferencia entre la fecha pasada como parámetro y
-;la fecha actual.
-;Ejemplo de uso: (diferencia-tiempo "2025-06-13 10:30:00")
+;FINAL REQUERIMIENTO 3
 ;==============================================================================================================
-(defun diferencia-tiempo (fecha-hora-str)
-  
-  (local-time:timestamp-difference (local-time:now)
-                                   (parse-fecha fecha-hora-str)))
 
-;la fecha en que el semáforo inició
-(parse-fecha "2025-06-13 10:30:00")
-(timer_2  (diferencia-tiempo "2025-06-13 10:30:00"))
-
-;==============================================================================================================
-;INICIA REQUERIMIENTO 3
-;==============================================================================================================
 
 ;==============================================================================================================
 ;INICIA REQUERIMIENTO 4
 ;==============================================================================================================
 
+
+
+;; ========================================================
 ;; REQUERIMIENTO 4a: Recomendación de Ciclos
 ;; FUNCION: duracion-ciclo
 ;; NATURALEZA: Pura
@@ -394,32 +345,27 @@
 )
 
 
-;===========================================================================================================================================================================================
-;;REQUERIMIENTO 4b: Recomendación de Ciclos
-;FUNCION: recomendacion-ciclo
-;Permite recomendar un tiempo adecuado para el ciclo rojo->amarillo->verde->rojo
+;; ========================================================
+;; REQUERIMIENTO 4b: Recomendación de Ciclos
+;; FUNCION: recomendacion-ciclo
+;; NATURALEZA: Pura
+;; ESTRATEGIA: Condicional
+;; IMPACTO: No destructiva
 
-;NATURALEZA: NO PURA
-;ESTRATEGIA: Uso de condicionales
-;IMPACTO: No destructiva
+;;Entradas
+;;tiempo-analizado: Es un entero que representa el tiempo total del ciclo
 
-;ENTRADA
-
-;tiempo_analizado: Un entero que define el tiempo del ciclo rojo->amarillo->verde->rojo
-
-;SALIDA
-
-;Retorna un string indicando si el tiempo es muy bajo, muy alto o si está dentro del rango permitido.
-;=====================================================================================================================================================================================
-
-(defun recomendacion-ciclo(tiempo_analizado)
-	(cond ((< tiempo_analizado 35) "Tiempo muy bajo. Se recomienda revisar el tiempo total")
-		  ((> tiempo_analizado 150) "Tiempo muy alto. Se recomienda revisar el tiempo total")
+;;Retorno: Retorna un string indicando si el tiempo del ciclo está dentro del rango
+;;de tiempo recomendado
+;; ========================================================
+(defun recomendacion-ciclo (tiempo-analizado)
+	(cond ((< tiempo-analizado 35) "Tiempo muy bajo. Se recomienda revisar el tiempo total")
+		  ((> tiempo-analizado 150) "Tiempo muy alto. Se recomienda revisar el tiempo total")
 		  (T "Tiempo dentro del rango [35; 150]")
 		
 	)
 )
-
+;; (recomendacion-ciclo(duracion-ciclo(get-tiempo-colores)))
 
 
 ;==============================================================================================================
@@ -432,9 +378,10 @@
 ;==============================================================================================================
 
 ;==================================================================================================================
+;Requerimiento 5: Planificación Temporal
 ;FUNCIÓN: ciclos-por-tiempo
 ;NATURALEZA: PURA
-;ESTRATEGIA: Emplea funciones de orden superior (mapcar)
+;ESTRATEGIA: Emplea funciones de orden superior (reduce)
 ;IMPACTO: No destructiva
 ;ENTRADAS
 
@@ -446,12 +393,9 @@
 ;==================================================================================================================
 
 (defun ciclos-por-tiempo (minutos)
-  (floor (* 60 minutos) (reduce #'+ (get_tiempo_colores) ))
+  (floor (* 60 minutos) (reduce #'+ (get-tiempo-colores) ))
 
   )
-
-(ciclos-por-tiempo -4)
-
                                         
 
 
@@ -467,12 +411,13 @@
 
 
 ;===========================================================================================================================================================================================
-;Función: distribucion-colores
-;NATURALEZA: PURA
-;ESTRATEGIA: Recursividad De Cola
-;IMPACTO: No destructiva
-;Se encarga de entregar la cantidad de colores rojos, amarillos y verde que se presentaron en un intervalo de tiempo determinado
-;Entradas
+ ;Requerimiento 6: Informe de Distribución Temporal
+ ;Función: distribucion-colores
+ ;Se encarga de entregar la cantidad de colores rojos, amarillos y verde que se presentaron en un intervalo de tiempo determinado
+ ;NATURALEZA: PURA
+ ;ESTRATEGIA: Recursividad De Cola
+ ;IMPACTO: No destructiva
+ ;Entradas
 
  ;tiempo_inicial: El tiempo usado como referencia en el cual se inicia el conteo de los colores
  ;tiempo_analizado: El tiempo preciso en el cual se quiere saber en que color está el semáforo
@@ -492,15 +437,15 @@
  ;============================================================================================================================================================================================
 
                                        
-(defun distribucion_colores (tiempo_inicial tiempo_analizado tiempo_max cr ca cv tr ta tv)
+(defun distribucion-colores (tiempo-inicial tiempo-analizado tiempo-max cr ca cv)
 
   (cond
 
-    ((= tiempo_analizado tiempo_max) (list cr ca cv))
-    ((eq (timer_2 (+ tiempo_inicial tiempo_analizado) tr ta tv) 'en-rojo) (distribucion_colores tiempo_inicial (+ tiempo_analizado 1) tiempo_max (+ cr 1) ca cv tr ta tv))
-    ((eq (timer_2 (+ tiempo_inicial tiempo_analizado) tr ta tv) 'en-amarillo) (distribucion_colores tiempo_inicial (+ tiempo_analizado 1) tiempo_max cr  (+ ca 1) cv tr ta tv))
+    ((= tiempo-analizado tiempo-max) (list cr ca cv))
+    ((eq (timer (+ tiempo-inicial tiempo-analizado)) 'en-rojo) (distribucion-colores tiempo-inicial (+ tiempo-analizado 1) tiempo-max (+ cr 1) ca cv))
+    ((eq (timer (+ tiempo-inicial tiempo-analizado)) 'en-amarillo) (distribucion-colores tiempo-inicial (+ tiempo-analizado 1) tiempo-max cr  (+ ca 1) cv))
 
-    (T (distribucion_colores tiempo_inicial (+ tiempo_analizado 1) tiempo_max cr ca (+ cv 1) tr ta tv))
+    (T (distribucion-colores tiempo-inicial (+ tiempo-analizado 1) tiempo-max cr ca (+ cv 1) ))
 
 
 
@@ -508,23 +453,17 @@
     )
 
   )
-;tiempo_inicial=100000, tiempo_max=3600
-;100000+0--->tiempo_analizado=0  (cr=0, ca=0, cv=0)
-;100000+1---->tiempo_analizado=1
-;100000+2----->tiempo_analizado=2
 
-;100000-100001-100002-100003---------------------------------------------------------------------1036000
-
-;12:30 15/06/2026 ---->13:13 15/06/2026
 ;===========================================================================================================================================================================================
- ;Función: calcular_procentajes
+ ;Requerimiento 6: Informe de Distribución Temporal
+ ;Función: calcular-procentajes
  ;Se encarga de calcular los porcentajes de rojo, amarillo y verde tomando como entrada las frecuencias de los colores
  ;NATURALEZA: PURA
  ;ESTRATEGIA: Utiliza funciones de orden superior
  ;IMPACTO: No destructiva
  ;Entradas
 
- ;lista: Representa la lista con tres miembros: el total de rojos, el total de verdes y el total de azul obtenidos dentro de un tiempo determinado
+ ;lista: Representa la lista con tres miembros: el total de rojos, el total de amarillos y el total de verdes obtenidos dentro de un tiempo determinado
 
 ;Salida
 
@@ -532,216 +471,201 @@
 ;El formato de salida es (porcentaje_de_rojos porcentaje_de_amarillos porcentaje_de_verdes)
 
  ;======================================================================================================================================================================================
-(defun  calcular_porcentajes (lista)
+(defun  calcular-porcentajes (lista)
 
   (list (* ( / (nth 0 lista) (reduce #'+ lista)) 100.0) (* ( / (nth 1 lista) (reduce #'+ lista)) 100.0) (* ( / (nth 2 lista) (reduce #'+ lista)) 100.0)))
 
-(calcular_porcentajes (distribucion_colores (get-unix-time) 0 3600 0 0 0 (car (get_tiempo_colores)) (car (cdr (get_tiempo_colores))) (car (cddr (get_tiempo_colores)))))
 
-(calcular_porcentajes '())
 ;==============================================================================================================
 ;FINALIZA REQUERIMIENTO 6
 ;==============================================================================================================
 
 
-;==============================================================================================================
-;FUNCIóN: get_tiempo_colores
-;NATURALEZA: PURA
-;ESTRATEGIA: No se utilizan condicionales.
-;IMPACTO: No destructiva
-;ENTRADAS:
-.
-
-;SALIDA:
-;Retorna una lista con los tiempos de duración para cada color. Los datos se leen del archivo config.json.
-;El formato de la salida es (tiempo_rojo tiempo_amarillo tiempo_verde tiempo_iter_rojo tiempo_iter_amarillo tiempo_iter_verde). Se requiere la bliblioteca quicklisp
-;y debe importarse la biblioteca mediante (ql:quickload :cl-json)
-;==============================================================================================================
-(defun get_tiempo_colores ()
-
-  (with-open-file (stream "c:/Users/espin/OneDrive/Documentos/LISI/Paradigma/json/config.json.txt"
-                          :direction :input
-                          :if-does-not-exist nil)
-    (unless stream
-      (error "No se pudo abrir el archivo"))
-    (let ((datos (json:decode-json stream))) (list (cdr (assoc :ROJO datos)) (cdr (assoc :AMARILLO datos)) (cdr (assoc :VERDE datos)) 
-	(cdr (assoc :itr  datos)) (cdr (assoc :ita datos)) (cdr (assoc :itv datos))) )))
 
 
 
 ;==============================================================================================================
-;FUNCIóN: intervalo_rojo
+;Requerimiento: Iteración 2-Extensión 1: Intermitencia de Seguridad
+;FUNCIóN: intervalo-rojo
 ;NATURALEZA: PURA
 ;ESTRATEGIA: Funcion Predicado
 ;IMPACTO: No destructiva
 ;ENTRADAS:
-.
-
+;  tiempo-unix: Entero
+;  total: Entero (duración total del ciclo)
+;  tiempos: Lista (rojo amarillo verde iter-r iter-a iter-v)
 ;SALIDA:
 ;Retorna T si en el tiempo indicado el semáforo está en rojo.
 ;==============================================================================================================
-(defun intervalo_rojo (tiempo-unix total rojo iter_r)
-
-	 (cond ((and (>= (mod tiempo-unix total) 0) (<= (mod tiempo-unix total) (- rojo 1)) T) 
-		(T NIL)))) 
-
+(defun intervalo-rojo (tiempo-unix total tiempos)
+  (let ((resto (mod tiempo-unix total))
+        (rojo (first tiempos)))
+    (cond ((and (>= resto 0) (<= resto (- rojo 1))) T)
+          (T NIL))))
 
 ;==============================================================================================================
-;FUNCIóN: intervalo_iter_rojo
+;Requerimiento: Iteración 2-Extensión 1: Intermitencia de Seguridad
+;FUNCIóN: intervalo-iter-rojo
 ;NATURALEZA: PURA
 ;ESTRATEGIA: Funcion Predicado
 ;IMPACTO: No destructiva
 ;ENTRADAS:
-.
-
+;  tiempo-unix: Entero
+;  total: Entero (duración total del ciclo)
+;  tiempos: Lista (rojo amarillo verde iter-r iter-a iter-v)
 ;SALIDA:
 ;Retorna T si en el tiempo indicado el semáforo está en intermitente rojo.
 ;==============================================================================================================
-(defun intervalo_iter_rojo (tiempo-unix total rojo iter_r)
-(cond
-((and (>= (mod tiempo-unix total) rojo) (< (mod tiempo-unix total) (+ rojo iter_r))) T)
-(T NIL)
-
-)
-) 
-
+(defun intervalo-iter-rojo (tiempo-unix total tiempos)
+  (let ((resto (mod tiempo-unix total))
+        (rojo (first tiempos))
+        (iter-r (fourth tiempos)))
+    (cond ((and (>= resto rojo) (< resto (+ rojo iter-r))) T)
+          (T NIL))))
 
 ;==============================================================================================================
-;FUNCIóN: intervalo_amarillo
+;Requerimiento: Iteración 2-Extensión 1: Intermitencia de Seguridad
+;FUNCIóN: intervalo-amarillo
 ;NATURALEZA: PURA
 ;ESTRATEGIA: Funcion Predicado
 ;IMPACTO: No destructiva
 ;ENTRADAS:
-.
+;  tiempo-unix: Entero
+;  total: Entero (duración total del ciclo)
+;  tiempos: Lista (rojo amarillo verde iter-r iter-a iter-v)
+;SALIDA:
+;Retorna T si en el tiempo indicado el semáforo está en amarillo.
+;==============================================================================================================
+(defun intervalo-amarillo (tiempo-unix total tiempos)
+  (let ((resto (mod tiempo-unix total))
+        (rojo (first tiempos))
+        (iter-r (fourth tiempos))
+        (amarillo (second tiempos)))
+    (cond ((and (>= resto (+ rojo iter-r)) (< resto (+ rojo iter-r amarillo))) T)
+          (T NIL))))
 
+;==============================================================================================================
+;Requerimiento: Iteración 2-Extensión 1: Intermitencia de Seguridad
+;FUNCIóN: intervalo-iter-amarillo
+;NATURALEZA: PURA
+;ESTRATEGIA: Funcion Predicado
+;IMPACTO: No destructiva
+;ENTRADAS:
+;  tiempo-unix: Entero
+;  total: Entero (duración total del ciclo)
+;  tiempos: Lista (rojo amarillo verde iter-r iter-a iter-v)
 ;SALIDA:
 ;Retorna T si en el tiempo indicado el semáforo está en intermitente amarillo.
 ;==============================================================================================================
-(defun intervalo_amarillo (tiempo-unix total rojo iter_r amarillo)
-	(cond
-	((and (>= (mod tiempo-unix total) (+ rojo iter_r)) (< (mod tiempo-unix total) (+ rojo iter_r amarillo))) T)
-	(T NIL))
-
-	
-)
+(defun intervalo-iter-amarillo (tiempo-unix total tiempos)
+  (let ((resto (mod tiempo-unix total))
+        (rojo (first tiempos))
+        (iter-r (fourth tiempos))
+        (amarillo (second tiempos))
+        (iter-a (fifth tiempos)))
+    (cond ((and (>= resto (+ rojo iter-r amarillo))
+                (< resto (+ rojo iter-r amarillo iter-a))) T)
+          (T NIL))))
 
 ;==============================================================================================================
-;FUNCIóN: intervalo_iter_amarillo
+;Requerimiento: Iteración 2-Extensión 1: Intermitencia de Seguridad
+;FUNCIóN: intervalo-verde
 ;NATURALEZA: PURA
 ;ESTRATEGIA: Funcion Predicado
 ;IMPACTO: No destructiva
 ;ENTRADAS:
-.
-
-;SALIDA:
-;Retorna T si en el tiempo indicado el semáforo está en intermitente amarillo.
-;==============================================================================================================
-
-(defun intervalo_iter_amarillo(tiempo-unix total rojo iter_r amarillo iter_a)
-
-(cond
-	((and (>= (mod tiempo-unix total) (+ rojo iter_r amarillo)) (< (mod tiempo-unix total) (+ rojo iter_r amarillo iter_a))) T)
-	(T NIL))
-)
-
-;==============================================================================================================
-;FUNCIóN: intervalo_verde
-;NATURALEZA: PURA
-;ESTRATEGIA: Funcion Predicado
-;IMPACTO: No destructiva
-;ENTRADAS:
-;tiempo_unix: Entero que indica la cantidad de segundos 
-;total: El tiempo total del ciclo
-;rojo: el tiempo en rojo
-;amarillo: el tiempo del amarillo
-;verde: el tiempo del verde
-;iter_r: el tiempo de rojo intermitente
-;inter_a: el tiempo de amarillo intermitente
-;iter_v: el tiempo de verde intermitente
+;  tiempo-unix: Entero
+;  total: Entero (duración total del ciclo)
+;  tiempos: Lista (rojo amarillo verde iter-r iter-a iter-v)
 ;SALIDA:
 ;Retorna T si en el tiempo indicado el semáforo está en verde.
 ;==============================================================================================================
-(defun intervalo_verde(tiempo-unix total rojo iter_r amarillo iter_a verde)
-
-	(cond
-	((and (>= (mod tiempo-unix total) (+ rojo iter_r amarillo iter_a)) (< (mod tiempo-unix total) (+ rojo iter_r amarillo iter_a verde))) T)
-	(T NIL))	
-)
-
+(defun intervalo-verde (tiempo-unix total tiempos)
+  (let ((resto (mod tiempo-unix total))
+        (rojo (first tiempos))
+        (iter-r (fourth tiempos))
+        (amarillo (second tiempos))
+        (iter-a (fifth tiempos))
+        (verde (third tiempos)))
+    (cond ((and (>= resto (+ rojo iter-r amarillo iter-a))
+                (< resto (+ rojo iter-r amarillo iter-a verde))) T)
+          (T NIL))))
 
 ;==============================================================================================================
-;FUNCIóN: intervalo_amarillo
+;Requerimiento: Iteración 2-Extensión 1: Intermitencia de Seguridad
+;FUNCIóN: timer-iter
 ;NATURALEZA: PURA
-;ESTRATEGIA: Emplea condicionales
+;ESTRATEGIA: Emplea condicionales y funciones predicado
 ;IMPACTO: No destructiva
 ;ENTRADAS:
-;Entradas:
-;tiempo_unix: Entero que indica la cantidad de segundos desde el 
-;rojo: el tiempo en rojo
-;amarillo: el tiempo del amarillo
-;verde: el tiempo del verde
-;iter_r: el tiempo de rojo intermitente
-;inter_a: el tiempo de amarillo intermitente
-;iter_v: el tiempo de verde intermitente
-
+;  tiempo-unix: Entero que indica la cantidad de segundos desde el epoch
 ;SALIDA:
 ;Retorna el color en el que se encuentra el semáforo
 ;==============================================================================================================
+(defun timer-iter (tiempo-unix)
+  (let* ((tiempos (or (get-tiempo-colores-iter) '(90 6 120 3 3 3)))  
+         (total (reduce #'+ tiempos)))
+    (cond 
+      ((intervalo-rojo tiempo-unix total tiempos) 
+       'en-rojo)
+      ((intervalo-iter-rojo tiempo-unix total tiempos) 
+       'en-intermitente-rojo)
+      ((intervalo-amarillo tiempo-unix total tiempos) 
+       'en-amarillo)
+      ((intervalo-iter-amarillo tiempo-unix total tiempos) 
+       'en-intermitente-amarillo)
+      ((intervalo-verde tiempo-unix total tiempos) 
+       'en-verde)
+      (t 
+       'en-intermitente-verde))))
 
-(defun timer_iter (tiempo-unix rojo amarillo verde iter_r iter_a iter_v)
-  (cond 
-		((intervalo_rojo tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r) 'en-rojo)
-		((intervalo_iter_rojo tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r) 'en-intermitente-rojo)
-        ((intervalo_amarillo tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r amarillo) 'en-amarillo)
-		((intervalo_iter_amarillo tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r amarillo iter_a) 'en-intermitente-amarillo)
-		((intervalo_verde tiempo-unix (+ rojo amarillo verde iter_r iter_a iter_v) rojo iter_r amarillo iter_a verde) 'en-verde)
-		(T 'en-intermitente-verde)
-
-	)
-
-)
-;Ejemplo de cómo usarlo
-(timer_iter (get-universal-time) (nth 0 (get_tiempo_colores)) (nth 1 (get_tiempo_colores)) (nth 2 (get_tiempo_colores)) 
-(nth 3 (get_tiempo_colores)) (nth 4 (get_tiempo_colores)) (nth 5 (get_tiempo_colores)))
 
 
 ;===========================================================================================================
+;Requerimiento: Iteración 2-Extensión 1: Intermitencia de Seguridad
+;Función: estado-semaforo-iter
 
-;Función que muestra en pantalla los cambios de estado
-
-;Naturaleza: Función Impura
-;Estrategia De Control: No utiliza recursión, no utiliza funciones de orden 
+;NATURALEZA: Función Impura
+;ESTRATEGIA De Control: No utiliza recursión, no utiliza funciones de orden 
 ;superior, no es una función predicado. Emplea condicionales
-;Impacto En Memoria: No destructiva.
+;IMPACTO En Memoria: No destructiva.
 
 ;Entradas:
-;data_time: Entero que indica la cantidad de segundos desde el 
-;rojo: el tiempo en rojo
-;amarillo: el tiempo del amarillo
-;verde: el tiempo del verde
-;iter_r: el tiempo de rojo intermitente
-;inter_a: el tiempo de amarillo intermitente
-;iter_v: el tiempo de verde intermitente
+
 
 ;Retorno:
 ;Retorna una cadena que indica el cambio de color o indica el color en el que se encuentra el semáforo
 
 
 ;===========================================================================================================
-(defun traffic_ligth_status_from_config(data_time rojo amarillo verde iter_r iter_a iter_v)
 
-(cond
-     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) rojo) "La luz ha cambiado de rojo a rojo-itermitente" )
-     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) (+ rojo iter_r)) "La luz ha cambiado de rojo-intermitente a amarillo" )
-     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) (+ rojo iter_r amarillo)) "La luz ha cambiado amarillo a amarillo-itermitente" )
-     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) (+ rojo iter_r amarillo iter_a)) "La luz ha cambiado amarillo-itermitente a verde" )
-     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) (+ rojo iter_r amarillo iter_a verde)) "La luz ha cambiado verde a verde-intermitente" )
-     ((= (mod data_time (+ rojo amarillo verde iter_r iter_a iter_v)) 0) "La luz ha cambiado verde-intermitente a rojo" )
-     (T (timer_iter data_time rojo amarillo verde iter_r iter_a iter_v))
-))
-
-(traffic_ligth_status_from_config (get-unix-time) (nth 0 (get_tiempo_colores)) (nth 1 (get_tiempo_colores)) (nth 2 (get_tiempo_colores)) 
-(nth 3 (get_tiempo_colores)) (nth 4 (get_tiempo_colores)) (nth 5 (get_tiempo_colores)))
+(defun estado-semaforo-iter (tiempo-unix)
+  "Retorna el mensaje de cambio si el tiempo coincide con un punto de transición,
+   o el color normal (usando timer-iter) en cualquier otro caso.
+   Los tiempos se obtienen desde get-tiempo-colores-iter."
+  (let* ((tiempos (get-tiempo-colores-iter))   ; lista (rojo amarillo verde iter-r iter-a iter-v)
+         (rojo (first tiempos))
+         (amarillo (second tiempos))
+         (verde (third tiempos))
+         (iter-r (fourth tiempos))
+         (iter-a (fifth tiempos))
+         (total (reduce #'+ tiempos))   ; suma de todos los tiempos
+         (resto (mod tiempo-unix total)))
+    (cond
+      ((= resto rojo)
+       "La luz ha cambiado de rojo a rojo-intermitente")
+      ((= resto (+ rojo iter-r))
+       "La luz ha cambiado de rojo-intermitente a amarillo")
+      ((= resto (+ rojo iter-r amarillo))
+       "La luz ha cambiado de amarillo a amarillo-intermitente")
+      ((= resto (+ rojo iter-r amarillo iter-a))
+       "La luz ha cambiado de amarillo-intermitente a verde")
+      ((= resto (+ rojo iter-r amarillo iter-a verde))
+       "La luz ha cambiado de verde a verde-intermitente")
+      ((= resto 0)
+       "La luz ha cambiado de verde-intermitente a rojo")
+      (t
+       (timer-iter tiempo-unix)))))
 
 ;==============================================================================================================
 ;INICIO Extensión 2: Persistencia de Datos
@@ -751,12 +675,13 @@
 
 
 ;==============================================================================================================
+;Requerimiento:  Extensión 2: Persistencia de Datos
 ;Funcion: informe
 ;Permite almacenar en un archivo de texto los datos de las transiciones
-;Naturaleza: Función Impura
-;Estrategia De Control: No utiliza recursión, no utiliza funciones de orden 
+;NATURALEZA: Función Impura
+;ESTRATEGIA De Control: No utiliza recursión, no utiliza funciones de orden 
 ;superior, no es una función predicado.
-;Impacto En Memoria: No destructiva.
+;IMPACTO En Memoria: No destructiva.
 ;Entrada:
 
 ;tiempo-inicial: El tiempo en el cual se quiere analizar si hubo una transición
@@ -769,47 +694,126 @@
 
 
 
-(defun informe (tiempo-inicial &optional (archivo "c:/Users/espin/OneDrive/Documentos/LISI/Paradigma/registro_semaforo.txt"))
-  (let ((estado (traffic_ligth_status tiempo-inicial)))
-    (format t "DEBUG: estado = ~a~%" estado)   ; imprime en pantalla para depuración
+(defun informe (tiempo-inicial &optional (archivo "registro_semaforo_iter.txt"))
+  (let ((estado (estado-semaforo tiempo-inicial)))
     (unless (member estado '(en-rojo en-amarillo en-verde))
       (with-open-file (out archivo
                            :direction :output
                            :if-exists :append
                            :if-does-not-exist :create)
         (format out "~%Tiempo ~a  ->  ~a~%"
-                (universal-to-datestring tiempo-inicial 0)
+                (tiempo-a-string tiempo-inicial)
                 estado)
         (finish-output out)))))
 
 
 ;==============================================================================================================
-;FUNCION: guardar_informe
-;Permite almacenar en un archivo de texto los datos de las transiciones que se producen desde una fecha inicial hasta
-;una cierta cantidad de segundos después de esa fecha.
-
+;Requerimiento:  Extensión 2: Persistencia de Datos
+;Funcion: informe-iter
+;Permite almacenar en un archivo de texto los datos de las transiciones con intermitencia
 ;NATURALEZA: Función Impura
-;ESTRATEGIA: Utiliza dotimes
-;IMPACTO: No destructiva.
+;ESTRATEGIA De Control: No utiliza recursión, no utiliza funciones de orden 
+;superior, no es una función predicado.
+;IMPACTO En Memoria: No destructiva.
 ;Entrada:
 
 ;tiempo-inicial: El tiempo en el cual se quiere analizar si hubo una transición
-;ruta_archivo: La ruta del archivo. Se coloca una ruta por defecto
-;tiempo_max: La cantidad de segundos desde el tiempo_inicial en el cual se contabilizarán las transiciones
+;archivo: La ruta del archivo. Se coloca una ruta por defecto
 
 ;Salida: Muestra un mensaje con el estado en que se encuentra el semáforo. Si es una transición, almacena en
 ;un archivo de texto la fecha y hora de la transición, así como la transición de la que se trata.
 ;==============================================================================================================
+(defun informe-iter (tiempo-inicial &optional (archivo "registro_semaforo_iter.txt"))
+  (let ((estado (estado-semaforo-iter tiempo-inicial)))
+    (unless (member estado '(en-rojo en-amarillo en-verde en-intermitente-rojo en-intermitente-amarillo en-intermitente-verde))
+      (with-open-file (out archivo
+                           :direction :output
+                           :if-exists :append
+                           :if-does-not-exist :create)
+        (format out "~%Tiempo ~a  ->  ~a~%"
+                (tiempo-a-string tiempo-inicial)
+                estado)
+        (finish-output out)))))
+
+;==============================================================================================================
+;Requerimiento:  Extensión 2: Persistencia de Datos
+;Funcion: guardar-informe
+;Permite almacenar en un archivo de texto los datos de las transiciones que se producen desde una fecha inicial hasta
+;una cierta cantidad de segundos después de esa fecha.
+
+;NATURALEZA: Función Impura
+;ESTRATEGIA De Control: Recursividad de cola
+;IMPACTO En Memoria: No destructiva.
+;Entrada:
+
+;tiempo-inicial: El tiempo desde el cual se quiera analizar las transiciones
+;tiempo-analizado: El tiempo en el cual se quiere saber si hubo una transicion o no
+;tiempo-max: El tiempo máximo en segundos hasta donde se quieren analizar las transiciones
+
+;Salida: Grabará un archivo de texto con los tiempos en los cuales ocurrió las transiciones
+;==============================================================================================================
 
 
-(defun guardar_informe (i max_iter)
-  (when (< i max_iter)
-    (informe (+ (get-universal-time) i))
-    (guardar_informe (1+ i) max_iter)))
+(defun guardar-informe (tiempo-inicial tiempo-analizado tiempo-max)
+  (when (< tiempo-analizado tiempo-max)
+    (informe-iter (+ tiempo-inicial tiempo-analizado))
+    (guardar-informe  tiempo-inicial (1+ tiempo-analizado) tiempo-max)))
 
-(guardar_informe 0 3600)
+
+;==============================================================================================================
+;Requerimiento:  Extensión 2: Persistencia de Datos
+;Funcion: guardar-informe-iter
+;Permite almacenar en un archivo de texto los datos de las transiciones que se producen desde una fecha inicial hasta
+;una cierta cantidad de segundos después de esa fecha. Las transiciones son con intermitencia
+
+;NATURALEZA: Función Impura
+;ESTRATEGIA De Control: Recursividad de cola
+;IMPACTO En Memoria: No destructiva.
+;Entrada:
+
+;tiempo-inicial: El tiempo desde el cual se quiera analizar las transiciones
+;tiempo-analizado: El tiempo en el cual se quiere saber si hubo una transicion o no
+;tiempo-max: El tiempo máximo en segundos hasta donde se quieren analizar las transiciones
+
+;Salida: Grabará un archivo de texto con los tiempos en los cuales ocurrió las transiciones
+;==============================================================================================================
+(defun guardar-informe-iter (tiempo-inicial tiempo-analizado tiempo-max)
+  (when (< tiempo-analizado tiempo-max)
+    (informe-iter (+ tiempo-inicial tiempo-analizado))
+    (guardar-informe-iter  tiempo-inicial (1+ tiempo-analizado) tiempo-max)))
 
 
 ;==============================================================================================================
 ;FINALIZA Extensión 2: Persistencia de Datos
 ;==============================================================================================================
+
+
+;; =============================================================================================================
+;;Requerimiento 7: Aseguramiento de la calidad
+; EJEMPLOS DE USO (aseguramos que se ejecuten en el paquete :semaforo)
+;; =============================================================================================================
+(in-package :semaforo)
+
+(transicion 'en-rojo 'verde)
+
+(transicion 'en-rojo 'amarillo)
+
+(timer (get-unix-time))
+
+(estado-semaforo (get-unix-time))
+
+(registrar-cambios (get-unix-time))
+
+(duracion-ciclo (get-tiempo-colores))
+
+(recomendacion-ciclo 120)
+
+(ciclos-por-tiempo 15)
+
+(calcular-porcentajes (distribucion-colores (get-unix-time) 0 3600 0 0 0))
+
+(informe (get-unix-time))
+
+(guardar-informe (get-unix-time) 0 300)
+
+(guardar-informe-iter (get-unix-time) 0 300)
