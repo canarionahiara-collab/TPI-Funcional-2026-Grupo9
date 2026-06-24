@@ -62,7 +62,7 @@ El sistema implementa:
 
 📺 **Presentación Técnica**
 
-🔗 [https://youtu.be/4gM3eEcSje4?si=QMNtA9MCr25YsAfb]
+🔗 https://youtu.be/4gM3eEcSje4?si=QMNtA9MCr25YsAfb
 
 
 ---
